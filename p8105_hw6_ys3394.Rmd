@@ -39,7 +39,8 @@ theme_set(theme_minimal() + theme(legend.position = "bottom"))
 
 **Create a city_state variable (e.g. “Baltimore, MD”), and a binary variable indicating whether the homicide is solved, omit some cities, and analyze `black` and `white` in the `victim_race` variable, besure `victime_age` is numeric.**
 
-```{r}
+```{r warning=FALSE, message=FALSE, collapse=TRUE}
+# Load and clean the data
 homicide_df = 
   read_csv("data/homicide-data.csv", na = c("", "NA", "Unknown")) %>% 
   mutate(
@@ -55,11 +56,11 @@ homicide_df =
     city_state != "Tulsa, AL") %>% 
   select(city_state, resolution, victim_age, victim_race, victim_sex)
 ```
+<br/>
 
+**For the city of Baltimore, MD, use the glm function to fit a logistic regression with resolved vs unresolved as the outcome and victim age, sex and race as predictors.**
 
-**For the city of Baltimore, MD, use the glm function to fit a logistic regression with resolved vs unresolved as the outcome and victim age, sex and race as predictors. **
-
-```{r}
+```{r warning=FALSE, message=FALSE, collapse=TRUE}
 baltimore_df =
   homicide_df %>% 
   filter(city_state == "Baltimore, MD")
@@ -70,17 +71,17 @@ glm(resolution ~ victim_age + victim_race + victim_sex,
   broom::tidy() %>% 
   mutate(
     OR = exp(estimate),
-    CI_lower = exp(estimate - 1.96 * std.error),
+    CI_lower = exp(estimate - 1.96 * std.error), # have an interval
     CI_upper = exp(estimate + 1.96 * std.error)
   ) %>% 
   select(term, OR, starts_with("CI")) %>% 
   knitr::kable(digits = 3)
 ```
-
+<br/>
 
 **Now run glm for each of the cities in your dataset, and extract the adjusted odds ratio (and CI) for solving homicides comparing Black victims to white victims.**
 
-```{r}
+```{r warning=FALSE, message=FALSE, collapse=TRUE}
 models_results_df = 
   homicide_df %>% 
   nest(data = -city_state) %>% 
@@ -98,10 +99,11 @@ models_results_df =
   ) %>% 
   select(city_state, term, OR, starts_with("CI")) 
 ```
+<br/>
 
 **Create a plot that shows the estimated ORs and CIs for each city. Organize cities according to estimated OR, and comment on the plot.**
 
-```{r}
+```{r warning=FALSE, message=FALSE, collapse=TRUE}
 models_results_df %>% 
   filter(term == "victim_sexMale") %>% 
   mutate(city_state = fct_reorder(city_state, OR)) %>% 
@@ -111,12 +113,18 @@ models_results_df %>%
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
+* This plot shows the OR of victim among male and female for each city, with Albuquerque has the largest OR. 
+
+* There are only about 5 cities with OR greater than 1, while most cities are with OR smaller than 1.
+
+* Since OR is the exponential transformation of estimates, with Female as default, cities with low OR means crimes conducted by male are more difficult to be solved.
+<br/>
 
 ## Problem 2
 
-Find some residuals
+**Load and clean the data for regression analysis。**
 
-```{r message=FALSE, warning=FALSE}
+```{r warning=FALSE, message=FALSE, collapse=TRUE}
 baby_df = 
   read_csv("./data/birthweight.csv") %>% 
   janitor::clean_names() %>% 
@@ -130,14 +138,15 @@ baby_df =
       as.factor()
   )
 ```
+<br/>
 
-fit a model
+**Fit a regression model for birthweight. Describe your modeling process and show a plot of model residuals against fitted values**
 
-```{r}
+```{r warning=FALSE, message=FALSE, collapse=TRUE}
 model_fit = lm(bwt ~ gaweeks, data = baby_df)
 ```
 
-```{r}
+```{r warning=FALSE, message=FALSE, collapse=TRUE}
 resid_plot =
 baby_df %>% 
   modelr::add_residuals(model_fit) %>% 
@@ -153,12 +162,27 @@ baby_df %>%
 resid_plot + pred_plot
 ```
 
-```{r}
+* In the data cleaning step, I select five covariates `babysex`, `bhead`, `blength`, `bwt` and `gaweeks`. Then I recode `babysex` variable from numeric to factor variable female and male.
+
+* The first model is the simplest one with only one predictor `gaweeks`. For this simple linear regression, I made two plots about residuals and predictions over fited values.
+
+* For residual plot, the distribution is symmetric over residual equals to zero, while for prediction plot, there is positive linear relationship between `gaweeks` and `bwt` predictions.
+
+<br/>
+
+**Compare the first model to two others. Make this comparison in terms of the cross-validated prediction error**
+
+```{r warning=FALSE, message=FALSE, collapse=TRUE}
 model_main = lm(bwt ~ blength + gaweeks, data = baby_df)
 model_three = lm(bwt ~ bhead*blength*babysex, data = baby_df)
 ```
 
-```{r}
+
+- 2nd Model: Using length at birth and gestational age as predictors (main effects only).
+- 3rd Model: Using head circumference, length, sex, and all interactions (including the three-way interaction) between these.
+
+
+```{r warning=FALSE, message=FALSE, collapse=TRUE}
 cv_df =
   crossv_mc(baby_df, 100) %>% 
   mutate(
@@ -178,7 +202,7 @@ cv_df =
     
 ```
 
-```{r}
+```{r warning=FALSE, message=FALSE, collapse=TRUE}
 cv_df %>% 
   dplyr::select(starts_with("rmse")) %>% 
   pivot_longer(
@@ -191,10 +215,16 @@ cv_df %>%
   geom_violin()
 ```
 
+* From the violin plot showing RMSE of three models, the first model has a much higher RMSE compared to two others, indicating that this model doesn't fit well. 
+
+* The third model containg interactions between `bhead`, `blength` and `babysex` may be the best model in showing relationships between covariabtes.
+<br/>
 
 ## Problem 3
 
-```{r}
+**Load the weather data**
+
+```{r warning=FALSE, message=FALSE, collapse=TRUE}
 weather_df = 
   rnoaa::meteo_pull_monitors(
     c("USW00094728"),
@@ -207,8 +237,11 @@ weather_df =
     tmax = tmax / 10) %>%
   select(name, id, everything())
 ```
+<br/>
 
-```{r}
+**Use 5000 bootstrap samples, plot the distribution of estimates**
+
+```{r warning=FALSE, message=FALSE, collapse=TRUE}
 weather_stp =
   weather_df %>% 
   modelr::bootstrap(5000, id = "strap_number") %>% 
@@ -226,14 +259,24 @@ weather_stp %>%
   geom_density()
 ```
 
-```{r error=TRUE}
-weather_stp %>% 
-  filter(term == "tmin") %>% 
-  ggplot(aes(x = r_square)) + 
-  geom_density() +
-  stat_quantile(quantiles = c(0.025, 0.0975))
+* Used the boostrap with 5000 bootstrap samples, and have estimates for both intercept and slope. 
 
-weather_stp %>% 
+* This plot shows the distribution of estimates. The distribution is normal to some distance with a mean at about 1.04. 
+<br/>
+
+**Using the 5000 bootstrap estimates, identify the 2.5% and 97.5% quantiles to provide a 95% confidence interval for r^2 and log(β^0∗β^1).**
+
+```{r warning=FALSE, message=FALSE, collapse=TRUE}
+r_ci =
+  weather_stp %>% 
+  summarize(
+    r_ci_lower = quantile(r_square, 0.025),
+    r_ci_upper = quantile(r_square, 0.975)
+  ) %>% 
+  knitr::kable(caption = "95% CI for R square")
+
+weather_log =
+  weather_stp %>% 
   dplyr::select(strap_number, term, estimate) %>% 
   pivot_wider(
     names_from = "term",
@@ -241,12 +284,45 @@ weather_stp %>%
   ) %>% 
   janitor::clean_names() %>% 
   mutate(
-    log_est = log(intercept*tmin)) %>% 
+    log_est = log(intercept*tmin))
+  
+  
+log_ci =
+  weather_log %>% 
+  summarize(
+    log_ci_lower = quantile(log_est, 0.025),
+    log_ci_upper = quantile(log_est, 0.975)
+  ) %>% 
+  knitr::kable(caption = "95% CI for log(β^0∗β^1)")
+
+r_ci
+log_ci
+```
+<br/>
+
+**Plot the distributions of `r^2` and `log(β^0∗β^1)`**
+
+```{r warning=FALSE, message=FALSE, collapse=TRUE}
+plot_1 =
+  weather_stp %>% 
+  filter(term == "tmin") %>% 
+  ggplot(aes(x = r_square)) + 
+  geom_density() +
+  labs(title = "Distribution of r^2")
+
+plot_2 =
+  weather_log %>% 
   ggplot(aes(x = log_est)) +
-  geom_density()
+  geom_density() +
+  labs(title = "Distribution of log(β^0∗β^1)")
+
+plot_1 + plot_2
 ```
 
+* Distributions of `r^2` and `log(β^0∗β^1)` are in the plot above. Since the number of the bootstrap samples is large enough, the distributions of them are normal according to CLT (Central Limit Theorem).
 
+<br/>
+<br/>
 
 
 
